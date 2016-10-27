@@ -35,6 +35,15 @@ utils.addChars = function (str, chars, pos) {
 };
 
 //
+// Add placeholder charater to the given position
+//
+utils.addPlaceholder = function (str, placeholderFormat, pos) {
+  var charAtPosition = placeholderFormat.charAt(pos);
+  var placeholderChar = charAtPosition === '|' ? '' : charAtPosition;
+  return str.substr(0, pos) + placeholderChar + str.substr(pos, str.length);
+};
+
+//
 // Remove a span of characters
 //
 utils.removeChars = function (str, start, end) {
@@ -56,6 +65,16 @@ utils.addListener = function (el, evt, handler) {
   return (typeof el.addEventListener !== 'undefined')
     ? el.addEventListener(evt, handler, false)
     : el.attachEvent('on' + evt, handler);
+};
+
+//
+// Helper method for cross browser implementation for removing
+// event listeners
+//
+utils.removeListener = function (el, evt, handler) {
+  return (typeof el.removeEventListener !== 'undefined')
+    ? el.removeEventListener(evt, handler, false)
+    : el.detachEvent('on' + evt, handler);
 };
 
 //

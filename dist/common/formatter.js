@@ -13,8 +13,7 @@ var utils = require('utils');
 // Defaults
 var defaults = {
   persistent: false,
-  repeat: false,
-  placeholder: ' '
+  repeat: false
 };
 
 // Regexs for input validation
@@ -40,7 +39,11 @@ function Formatter(el, opts) {
   }
 
   // Merge opts with defaults
-  self.opts = utils.extend({}, defaults, opts);
+  var defaultPlaceholder = opts.pattern
+    .replace(/[\{\}]/g, '')
+    .replace(/[\.,\-\\\/ ]/g, '|')
+    .replace(/[9a*]/g, ' ');
+  self.opts = utils.extend({ placeholder: defaultPlaceholder }, defaults, opts);
 
   // 1 pattern is special case
   if (typeof self.opts.pattern !== 'undefined') {
@@ -62,16 +65,18 @@ function Formatter(el, opts) {
   self.hldrs = {};
   self.focus = 0;
 
+  // Store references to event handlers to be able to remove them
+  self._handlers = {
+    keyDown: self._keyDown.bind(self),
+    keyPress: self._keyPress.bind(self),
+    paste: self._paste.bind(self),
+    focus: self._focus.bind(self),
+  };
+
   // Add Listeners
-  utils.addListener(self.el, 'keydown', function (evt) {
-    self._keyDown(evt);
-  });
-  utils.addListener(self.el, 'keypress', function (evt) {
-    self._keyPress(evt);
-  });
-  utils.addListener(self.el, 'paste', function (evt) {
-    self._paste(evt);
-  });
+  utils.addListener(self.el, 'keydown', self._handlers.keyDown);
+  utils.addListener(self.el, 'keypress', self._handlers.keyPress);
+  utils.addListener(self.el, 'paste', self._handlers.paste);
 
   // Persistence
   if (self.opts.persistent) {
@@ -80,17 +85,27 @@ function Formatter(el, opts) {
     self.el.blur();
 
     // Add Listeners
-    utils.addListener(self.el, 'focus', function (evt) {
-      self._focus(evt);
-    });
-    utils.addListener(self.el, 'click', function (evt) {
-      self._focus(evt);
-    });
-    utils.addListener(self.el, 'touchstart', function (evt) {
-      self._focus(evt);
-    });
+    utils.addListener(self.el, 'focus', self._handlers.focus);
+    utils.addListener(self.el, 'click', self._handlers.focus);
+    utils.addListener(self.el, 'touchstart', self._handlers.focus);
   }
 }
+
+//
+// @public
+// Remove event handlers
+//
+Formatter.prototype.destroy = function () {
+  utils.removeListener(this.el, 'keydown', this._handlers.keyDown);
+  utils.removeListener(this.el, 'keypress', this._handlers.keyPress);
+  utils.removeListener(this.el, 'paste', this._handlers.paste);
+
+  if (this.opts.persistent) {
+    utils.removeListener(this.el, 'focus', this._handlers.focus);
+    utils.removeListener(this.el, 'click', this._handlers.focus);
+    utils.removeListener(this.el, 'touchstart', this._handlers.focus);
+  }
+};
 
 //
 // @public
@@ -313,9 +328,26 @@ Formatter.prototype._formatValue = function (ignoreCaret) {
   // Set value and adhere to maxLength
   this.el.value = this.val.substr(0, this.mLength);
 
+  // Triggers the input event
+  this._triggerInputEvent();
+
   // Set new caret position
   if ((typeof ignoreCaret) === 'undefined' || ignoreCaret === false) {
     inptSel.set(this.el, this.newPos);
+  }
+};
+
+//
+// @private
+// Manually trigger input event
+//
+Formatter.prototype._triggerInputEvent = function () {
+  if ('createEvent' in document) {
+    var evt = document.createEvent('HTMLEvents');
+    evt.initEvent('input', true, true);
+    this.el.dispatchEvent(evt);
+  } else {
+    this.el.fireEvent('oninput');
   }
 };
 
@@ -393,8 +425,8 @@ Formatter.prototype._addChars = function () {
     for (var i = 0; i <= this.mLength; i++) {
       if (!this.val.charAt(i)) {
         // Add placeholder at pos
-        this.val = utils.addChars(this.val, this.opts.placeholder, i);
-        this.hldrs[i] = this.opts.placeholder;
+        this.val = utils.addPlaceholder(this.val, this.opts.placeholder, i);
+        this.hldrs[i] = this.opts.placeholder.charAt(i);
       }
       this._addChar(i);
     }
@@ -440,7 +472,7 @@ Formatter.prototype._addChar = function (i) {
   // Updateholder
   if (this.hldrs[i]) {
     delete this.hldrs[i];
-    this.hldrs[i + 1] = this.opts.placeholder;
+    this.hldrs[i + 1] = this.opts.placeholder.charAt(i + 1);
   }
 
   // Update value
