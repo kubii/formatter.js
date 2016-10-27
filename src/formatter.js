@@ -15,8 +15,7 @@ define([
 // Defaults
 var defaults = {
   persistent: false,
-  repeat: false,
-  placeholder: ' '
+  repeat: false
 };
 
 // Regexs for input validation
@@ -42,7 +41,11 @@ function Formatter(el, opts) {
   }
 
   // Merge opts with defaults
-  self.opts = utils.extend({}, defaults, opts);
+  var defaultPlaceholder = opts.pattern
+    .replace(/[\{\}]/g, '')
+    .replace(/[\.,\-\\\/ ]/g, '|')
+    .replace(/[9a*]/g, ' ');
+  self.opts = utils.extend({ placeholder: defaultPlaceholder }, defaults, opts);
 
   // 1 pattern is special case
   if (typeof self.opts.pattern !== 'undefined') {
@@ -424,8 +427,8 @@ Formatter.prototype._addChars = function () {
     for (var i = 0; i <= this.mLength; i++) {
       if (!this.val.charAt(i)) {
         // Add placeholder at pos
-        this.val = utils.addChars(this.val, this.opts.placeholder, i);
-        this.hldrs[i] = this.opts.placeholder;
+        this.val = utils.addPlaceholder(this.val, this.opts.placeholder, i);
+        this.hldrs[i] = this.opts.placeholder.charAt(i);
       }
       this._addChar(i);
     }
@@ -471,7 +474,7 @@ Formatter.prototype._addChar = function (i) {
   // Updateholder
   if (this.hldrs[i]) {
     delete this.hldrs[i];
-    this.hldrs[i + 1] = this.opts.placeholder;
+    this.hldrs[i + 1] = this.opts.placeholder.charAt(i + 1);
   }
 
   // Update value

@@ -35,6 +35,15 @@ utils.addChars = function (str, chars, pos) {
 };
 
 //
+// Add placeholder charater to the given position
+//
+utils.addPlaceholder = function (str, placeholderFormat, pos) {
+  var charAtPosition = placeholderFormat.charAt(pos);
+  var placeholderChar = charAtPosition === '|' ? '' : charAtPosition;
+  return str.substr(0, pos) + placeholderChar + str.substr(pos, str.length);
+};
+
+//
 // Remove a span of characters
 //
 utils.removeChars = function (str, start, end) {
